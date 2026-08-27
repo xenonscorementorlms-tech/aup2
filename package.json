@@ -1,0 +1,15 @@
+{
+  "name": "autoproduct-v2-poc",
+  "version": "1.0.0",
+  "description": "Autoproduct v2 POC - AI-powered product enrichment and Shopify CSV export pipeline demo",
+  "type": "module",
+  "private": true,
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "demo": "node src/index.js --mock"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5"
+  }
+}
