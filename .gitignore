@@ -3,3 +3,6 @@ node_modules/
 output/*
 !output/.gitkeep
 README.md
+
+# Your real product data drop-in - not demo/source data, never committed.
+src/data/sampleRows.csv

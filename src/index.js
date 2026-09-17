@@ -1,7 +1,8 @@
 import "dotenv/config";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, writeFile, readFile } from "node:fs/promises";
+import XLSX from "xlsx";
 
 import { runPipeline } from "./lib/apiClient.js";
 import { sampleRows } from "./data/sampleRows.js";
@@ -34,8 +35,46 @@ function section(title) {
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const outputDir = path.join(__dirname, "..", "output");
 
+// Fixed default input location - drop a CSV here and every run (no --file
+// needed) picks it up automatically. Falls back to the hardcoded demo
+// data in sampleRows.js only if this file hasn't been placed yet.
+const DEFAULT_CSV_PATH = path.join(__dirname, "data", "sampleRows.csv");
+
 const args = process.argv.slice(2);
 const mock = args.includes("--mock") || process.env.MOCK_MODE === "true";
+const fileArgIndex = args.indexOf("--file");
+const filePath = fileArgIndex !== -1 ? args[fileArgIndex + 1] : null;
+
+async function readRowsFromFile(targetPath) {
+  const ext = path.extname(targetPath).toLowerCase();
+  if (ext === ".json") {
+    const raw = await readFile(targetPath, "utf8");
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) {
+      throw new Error(`${targetPath} must contain a JSON array of product rows`);
+    }
+    return parsed;
+  }
+
+  // .csv / .xlsx - read as a buffer and pass to XLSX.read(), not
+  // XLSX.readFile(), which breaks under Node ESM in SheetJS's .mjs build.
+  const buffer = await readFile(targetPath);
+  const wb = XLSX.read(buffer, { type: "buffer" });
+  const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: "" });
+  if (rows.length === 0) throw new Error(`${targetPath} appears empty`);
+  return rows;
+}
+
+async function loadRows() {
+  if (filePath) return { rows: await readRowsFromFile(filePath), source: filePath };
+
+  try {
+    return { rows: await readRowsFromFile(DEFAULT_CSV_PATH), source: "src/data/sampleRows.csv" };
+  } catch (err) {
+    if (err.code !== "ENOENT") throw err;
+    return { rows: sampleRows, source: "src/data/sampleRows.js (built-in demo data)" };
+  }
+}
 
 async function main() {
   console.log(paint(c.bold + c.cyan, "\nAutoproduct v2 POC"));
@@ -50,9 +89,12 @@ async function main() {
   );
   console.log(paint(c.dim, `Engine: ${process.env.API_BASE_URL || "(API_BASE_URL not set)"}`));
 
+  const { rows, source } = await loadRows();
+  console.log(paint(c.dim, `Data source: ${source} (${rows.length} row(s))`));
+
   section("Requesting pipeline run");
   console.log(paint(c.yellow, "Calling engine API..."));
-  const result = await runPipeline({ mode: mock ? "mock" : "live", rows: sampleRows });
+  const result = await runPipeline({ mode: mock ? "mock" : "live", rows });
   console.log(
     paint(
       c.yellow,
