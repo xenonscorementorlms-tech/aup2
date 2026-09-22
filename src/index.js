@@ -35,10 +35,12 @@ function section(title) {
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const outputDir = path.join(__dirname, "..", "output");
 
-// Fixed default input location - drop a CSV here and every run (no --file
-// needed) picks it up automatically. Falls back to the hardcoded demo
-// data in sampleRows.js only if this file hasn't been placed yet.
-const DEFAULT_CSV_PATH = path.join(__dirname, "data", "sampleRows.csv");
+// Fixed default input location - drop a file named sampleRows.csv,
+// sampleRows.xlsx, or sampleRows.json here and every run (no --file
+// needed) picks it up automatically, checked in that order. Falls back
+// to the hardcoded demo data in sampleRows.js only if none exist.
+const DEFAULT_DATA_DIR = path.join(__dirname, "data");
+const DEFAULT_FILE_CANDIDATES = ["sampleRows.csv", "sampleRows.xlsx", "sampleRows.json"];
 
 const args = process.argv.slice(2);
 const mock = args.includes("--mock") || process.env.MOCK_MODE === "true";
@@ -68,12 +70,16 @@ async function readRowsFromFile(targetPath) {
 async function loadRows() {
   if (filePath) return { rows: await readRowsFromFile(filePath), source: filePath };
 
-  try {
-    return { rows: await readRowsFromFile(DEFAULT_CSV_PATH), source: "src/data/sampleRows.csv" };
-  } catch (err) {
-    if (err.code !== "ENOENT") throw err;
-    return { rows: sampleRows, source: "src/data/sampleRows.js (built-in demo data)" };
+  for (const filename of DEFAULT_FILE_CANDIDATES) {
+    const candidatePath = path.join(DEFAULT_DATA_DIR, filename);
+    try {
+      return { rows: await readRowsFromFile(candidatePath), source: `src/data/${filename}` };
+    } catch (err) {
+      if (err.code !== "ENOENT") throw err;
+    }
   }
+
+  return { rows: sampleRows, source: "src/data/sampleRows.js (built-in demo data)" };
 }
 
 async function main() {
@@ -130,7 +136,7 @@ async function main() {
     console.log(paint(c.green, `  title:            ${enriched.title}`));
     console.log(paint(c.green, `  product type:     ${enriched.productType}`));
     console.log(paint(c.green, `  collection:       ${enriched.subCategory}`));
-    console.log(paint(c.green, `  vendor:           ${enriched.vendor}`));
+    console.log(paint(c.green, `  vendor:           ${row.supplierName || "(empty - not AI-generated)"}`));
     console.log(paint(c.green, `  seo title:        ${enriched.seoTitle}`));
     console.log(paint(c.green, `  seo description:  ${enriched.seoDescription}`));
     console.log(paint(c.green, `  tags:             ${enriched.tags.join(", ")}`));
@@ -138,12 +144,15 @@ async function main() {
 
     console.log(paint(c.cyan, "\nCalculated pricing:"));
     if (pricing.price === null) {
-      console.log(paint(c.cyan, `  cost: (empty)  ->  no cost price supplied, price left blank`));
+      console.log(paint(c.cyan, `  no sell price or cost price supplied, price left blank`));
+    } else if (pricing.source === "existing") {
+      const marginNote = pricing.marginPercent !== null ? ` (margin: ${pricing.marginPercent}%)` : "";
+      console.log(paint(c.cyan, `  sell price: $${pricing.price.toFixed(2)} (from input data)${marginNote}`));
     } else {
       console.log(
         paint(
           c.cyan,
-          `  cost: $${Number(row.costPrice).toFixed(2)}  ->  target margin: ${pricing.marginPercent}%  ->  price: $${pricing.price.toFixed(2)}`
+          `  cost: $${Number(row.costPrice).toFixed(2)}  ->  price: $${pricing.price.toFixed(2)} (calculated: cost x2.5, rounded up)  ->  margin: ${pricing.marginPercent}%`
         )
       );
     }
