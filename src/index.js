@@ -189,9 +189,13 @@ async function main() {
   const jsonPath = path.join(outputDir, "products.json");
   await writeFile(jsonPath, JSON.stringify(result.products, null, 2) + "\n", "utf8");
 
+  const stockCsvPath = path.join(outputDir, "stock.csv");
+  await writeFile(stockCsvPath, result.stockCsv, "utf8");
+
   console.log(paint(c.green, `\nExport complete:`));
-  console.log(paint(c.green, `  CSV:  ${csvPath}`));
-  console.log(paint(c.green, `  JSON: ${jsonPath}`));
+  console.log(paint(c.green, `  CSV:   ${csvPath}`));
+  console.log(paint(c.green, `  JSON:  ${jsonPath}`));
+  console.log(paint(c.green, `  Stock: ${stockCsvPath}`));
   console.log(
     paint(
       c.dim,
