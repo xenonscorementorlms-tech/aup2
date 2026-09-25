@@ -192,10 +192,14 @@ async function main() {
   const stockCsvPath = path.join(outputDir, "stock.csv");
   await writeFile(stockCsvPath, result.stockCsv, "utf8");
 
+  const metafieldsCsvPath = path.join(outputDir, "metafields.csv");
+  await writeFile(metafieldsCsvPath, result.metafieldsCsv, "utf8");
+
   console.log(paint(c.green, `\nExport complete:`));
-  console.log(paint(c.green, `  CSV:   ${csvPath}`));
-  console.log(paint(c.green, `  JSON:  ${jsonPath}`));
-  console.log(paint(c.green, `  Stock: ${stockCsvPath}`));
+  console.log(paint(c.green, `  CSV:        ${csvPath}`));
+  console.log(paint(c.green, `  JSON:       ${jsonPath}`));
+  console.log(paint(c.green, `  Stock:      ${stockCsvPath}`));
+  console.log(paint(c.green, `  Metafields: ${metafieldsCsvPath}`));
   console.log(
     paint(
       c.dim,
